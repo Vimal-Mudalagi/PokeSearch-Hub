@@ -1,23 +1,36 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import PokemonCard from "./components/PokemonCard";
+import { API_URL } from "./Constants";
+import Loader from "./components/Loader";
 
 const App = () => {
   const [pokemons, setPokemons] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    axios
-      .get("https://pokeapi.co/api/v2/pokemon?limit=151")
-      .then((response) => {
-        const fetches = response.data.results.map((pokemon) =>
-          axios.get(pokemon.url)
+    const fetchPokeMonData = async () => {
+      try {
+        setLoading(true);
+        const res = await axios.get(`${API_URL}pokemon?limit=151`);
+        const pokeMons = res.data.results;
+        const pokeMonDetails = await Promise.all(
+          pokeMons.map(async (pokeMon) => {
+            const res = await axios.get(pokeMon.url);
+            return res.data;
+          })
         );
-        Promise.all(fetches).then((responses) => {
-          setPokemons(responses.map((response) => response.data));
-        });
-      })
-      .catch((error) => console.log(error));
+        setPokemons(pokeMonDetails);
+      } catch (e) {
+        console.error(e);
+        alert("Something went wrong...");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPokeMonData();
   }, []);
 
   const handleSearch = (event) => {
@@ -45,11 +58,17 @@ const App = () => {
         </div>
       </div>
       <div className="grow p-2 overflow-y-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
-          {filteredPokemons.map((pokemon) => (
-            <PokemonCard key={pokemon.id} pokemon={pokemon} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="w-full h-full flex justify-center items-center">
+            <Loader />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 h-full">
+            {filteredPokemons.map((pokemon) => (
+              <PokemonCard key={pokemon.id} pokemon={pokemon} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
